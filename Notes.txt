@@ -36,4 +36,108 @@ output "aws_public_ip" {
 }
 
 
-## Demo
+## Breakdown of a Sample terraform file
+## START OF FILE
+
+##################################################################################
+# VARIABLES
+# MAP NOTE:  set variables  for  Access / Secret / Private (.pem) Keys and path
+##################################################################################
+
+variable "aws_access_key" {}
+variable "aws_secret_key" {}
+variable "private_key_path" {}
+variable "key_name" {
+  default = "PluralsightKeys"
+}
+
+##################################################################################
+# PROVIDERS
+# MAP NOTE:  set the provider i.e. AWS
+##################################################################################
+
+provider "aws" {
+  access_key = "${var.aws_access_key}"
+  secret_key = "${var.aws_secret_key}"
+  region     = "us-east-1"
+}
+
+##################################################################################
+# RESOURCES
+# MAP NOTE:  set resource to create (i.e. ec2 t2.micro instance)
+#              - amazon machine image
+#              - instance type
+#              - key name
+#            set the connection and private key path (user / private key)
+#            set the provisioner (how / what to install)
+##################################################################################
+
+resource "aws_instance" "nginx" {
+  ami           = "ami-c58c1dd3"
+  instance_type = "t2.micro"
+  key_name        = "${var.key_name}"
+
+  connection {
+    user        = "ec2-user"
+    private_key = "${file(var.private_key_path)}"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum install nginx -y",
+      "sudo service nginx start"
+    ]
+  }
+}
+
+##################################################################################
+# OUTPUT
+# MAP NOTE:  capture specific output output (i.e. DNS)
+##################################################################################
+
+output "aws_instance_public_dns" {
+    value = "${aws_instance.nginx.public_dns}"
+}
+
+## END OF FILE
+
+NOTE: The above file is located in scratch/moduleone.tf
+
+## Steps to run terraform and create AWS instances
+##
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 
