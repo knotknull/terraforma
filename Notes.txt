@@ -447,9 +447,111 @@ aws_instance_public_dns = ec2-75-101-179-144.compute-1.amazonaws.com
 
 
 
-## 3. Tear down the aws resources that were created
+## 3. Tear down the aws resources that were created via destroy
 ##
 scratch/> terraform destroy -var-file=../vars/terraform.tfvars
+
+aws_instance.nginx: Refreshing state... (ID: i-0d37238bddb1e8776)
+
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+  - aws_instance.nginx
+
+
+Plan: 0 to add, 0 to change, 1 to destroy.
+
+Do you really want to destroy?
+  Terraform will destroy all your managed infrastructure, as shown above.
+  There is no undo. Only 'yes' will be accepted to confirm.
+
+  Enter a value: yes
+
+aws_instance.nginx: Destroying... (ID: i-0d37238bddb1e8776)
+aws_instance.nginx: Still destroying... (ID: i-0d37238bddb1e8776, 10s elapsed)
+aws_instance.nginx: Still destroying... (ID: i-0d37238bddb1e8776, 20s elapsed)
+aws_instance.nginx: Still destroying... (ID: i-0d37238bddb1e8776, 30s elapsed)
+aws_instance.nginx: Still destroying... (ID: i-0d37238bddb1e8776, 40s elapsed)
+aws_instance.nginx: Still destroying... (ID: i-0d37238bddb1e8776, 50s elapsed)
+aws_instance.nginx: Destruction complete after 54s
+
+Destroy complete! Resources: 1 destroyed.
+
+#######################################################################
+## Terraform State
+#######################################################################
+
+Terraform keeps state in a json file: terraform.tfstate
+  - contains resource mappings and metadata
+    builds resource and dependency tree
+
+  - When changes are being done to configuration, state file becomes locked so
+    that only one person can make change to a resource at a time.
+
+  - State file can be stored locally or remotely
+
+  - Can store state file to dev / prod files from same terraform file
+
+Terraform Planning:
+  - Terraform inspects state and can refresh from current state of resource
+  - Terraform inspects configuration file
+  - Creates dependency graph
+      - what resources deployed
+      - what order to deploy
+      - creates dependency tree (subnets created after vpc created)
+      - determines additions / deletions configuration change will make to
+        the dependency graph
+      - walks dependency graph and implements determined changes (adds / deletes)
+
+
+
+## Terraform Data type
+##
+data "aws_availability_zones" "available" {}
+
+## This sets up a data source by querying aws availability zones and returning the
+## data to a variable called available
+
+resource "aws_subnet" "subnet1" {
+  cidr_block        = "${var.subnet1_address_space}"
+  vpc_id            = "${aws_vpc.vpc.id}"
+  availability_zone = "${data.aws_availability_zones.available.names[0]}"
+
+}
+
+This shows a subnet be declared as subnet1 and setting the availability_zone to
+the data source declared earlier = ${data.aws_availability_zones.available.names[0]}
+
+
+## create security group and elb using the created security group
+##
+
+
+# Nginx security group
+resource "aws_security_group" "nginx-sg" {
+  name        = "nginx_sg"
+  vpc_id      = "${aws_vpc.vpc.id}"
+
+  ingress {}
+  egress {}
+}
+
+# elb based w/ sec grp created above
+resource "aws_elb" "web" {
+  name = "nginx-elb"
+  security_groups = ["${aws_security_group.elb-sg.id}"]
+}
+
+
+
+
+
+
+
+
 
 
 
