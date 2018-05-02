@@ -1,2 +1,39 @@
 
 https://www.terraform.io/
+
+
+Executable written in golang
+  - terraform file holds infrastructure build
+    - can be split between several files for modularity
+  - terraform state file (created when running terraform)
+  - terraform preferences
+
+# define credentials using variables
+ex.
+  variable "aws_access_key" {}
+  variable "aws_secret_key" {}
+
+# aws called provider, credentials defined there
+
+provider "aws" {
+  access_key = "access_key"
+  secret_key = "secret_key"
+  region = "us-east-1"
+}
+
+# server, etc called resource
+#  resource details can be hard-coded or set via variables
+
+resource "aws_instance" "ex" {
+  ami = "ami-c58c1dd3"
+  instance_type = "t2.micro"
+}
+
+# get info from deployment
+
+output "aws_public_ip" {
+  value = "${aws_instance.ex.public_dns}"
+}
+
+
+## Demo
