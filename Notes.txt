@@ -849,6 +849,69 @@ map@hexagon:/mod2/> diff moduletwo-start.tf moduletwo-update.tf.ignore  |  pg
 ## Configuring Resources After Creation
 ##################################################################################
 
+Provisioners:  Plug into resources to perform actions as that resource is being created.
+
+Updates to Scenario:
+  - export logs from webservers to s3
+  - drop website files into s3 and have web servers import them as their config
+  - add tags to resources with billing account
+
+
+
+##################################################################################
+## Provisioners
+##################################################################################
+  - Multiple uses
+  - Local or remote
+  - Provisioner can be executed during creation or destruction (?)
+  - Can use multiple provisioners in a single resource (file vs. remote-exec)
+      - If something goes wrong with provisioner the resource is in an
+        inconsistent state.
+      - Terraform flags that resource as tainted but continues processing
+
+
+provisioner ex.
+
+## tells provisioner how to connect
+##
+connection {
+  user = "username"
+  private_key = "privatekey"
+}
+
+## Creates a file on the destination resource
+##
+provisioner "file" {
+  content = <<EOF
+ your file content goes in raw here
+EOF
+  destination = "/path/to/file.txt"
+}
+
+
+## Runs command locally (windows or linux)
+##
+provisioner "local-exec" {
+  command = "local command here"
+}
+
+## Remote exec runs commands remotely (yum, etc.)
+## NOTE: You can provide a list of scripts that are available locally and
+## NOTE: remote-exec will copy them to the remote resource and execute them remotely.
+##
+provisioner "remote-exec" {
+  scripts = "[list, of local, scripts, to, run]"
+}
+
+
+
+##################################################################################
+## Terraform Syntax
+##################################################################################
+
+## LAST HERE
+
+
 
 
 
