@@ -492,6 +492,9 @@ Terraform keeps state in a json file: terraform.tfstate
     that only one person can make change to a resource at a time.
 
   - State file can be stored locally or remotely
+      - remote storage of state files:
+          - consul
+          - aws s3
 
   - Can store state file to dev / prod files from same terraform file
 
@@ -508,8 +511,12 @@ Terraform Planning:
 
 
 
-## Terraform Data type
-##
+## Terraform Data Sources
+## Build a configuration with data outside of terraform
+## NOTE: providers are responsible for defining data sources
+##       data type is first  parm (aws_availability_zones)
+##       data name is second parm (aws_availability_zones)
+
 data "aws_availability_zones" "available" {}
 
 ## This sets up a data source by querying aws availability zones and returning the
@@ -547,16 +554,300 @@ resource "aws_elb" "web" {
 
 
 
+#######################################################################
+## More complicated example
+#######################################################################
+
+Here we will be creating an infrastructure that has:
+  - a vpc
+  - internet gateway
+  - two subnets
+  - route tables (and route table associations)
+  - security groups
+  - two web servers
+  - an elb
+
+This example is done in two parts (START, UPDATE).  Comments on what is happening
+in each section will be done via NOTE:
+
+
+### START
+  ##################################################################################
+  # VARIABLES
+  # NOTE:  key variables delcared. Network address space declared for vpc and
+  # NOTE:  the two subnets.
+  ##################################################################################
+
+  variable "aws_access_key" {}
+  variable "aws_secret_key" {}
+  variable "private_key_path" {}
+  variable "key_name" {
+    default = "PluralsightKeys"
+  }
+  variable "network_address_space" {
+    default = "10.1.0.0/16"
+  }
+  variable "subnet1_address_space" {
+    default = "10.1.0.0/24"
+  }
+  variable "subnet2_address_space" {
+    default = "10.1.1.0/24"
+  }
+
+  ##################################################################################
+  # PROVIDERS
+  # NOTE:  Setting the provider for the resources and data.
+  # NOTE:  Setting up w/ keys and region
+  ##################################################################################
+
+  provider "aws" {
+    access_key = "${var.aws_access_key}"
+    secret_key = "${var.aws_secret_key}"
+    region     = "us-east-1"
+  }
+
+  ##################################################################################
+  # DATA
+  # NOTE:  Sets Data Type for available availability zones for region provided
+  ##################################################################################
+
+  data "aws_availability_zones" "available" {}
+
+  ##################################################################################
+  # RESOURCES
+  ##################################################################################
+
+  # NETWORKING #
+  # NOTE:  Networking resources setup:
+  # NOTE:  - vpc
+  # NOTE:  - internet gateway
+  # NOTE:  - subnet1 / subnet 2
+  # NOTE:  - route table / route table association (link tbl to subnet)
+  # NOTE:  - security group: setting ingress (22, 80) and egress (0) traffic
+  #
+  resource "aws_vpc" "vpc" {
+    cidr_block = "${var.network_address_space}"
+    enable_dns_hostnames = "true"
+
+  }
+
+  resource "aws_internet_gateway" "igw" {
+    vpc_id = "${aws_vpc.vpc.id}"
+
+  }
+
+  resource "aws_subnet" "subnet1" {
+    cidr_block        = "${var.subnet1_address_space}"
+    vpc_id            = "${aws_vpc.vpc.id}"
+    map_public_ip_on_launch = "true"
+    availability_zone = "${data.aws_availability_zones.available.names[0]}"
+
+  }
+
+  resource "aws_subnet" "subnet2" {
+    cidr_block        = "${var.subnet2_address_space}"
+    vpc_id            = "${aws_vpc.vpc.id}"
+    map_public_ip_on_launch = "true"
+    availability_zone = "${data.aws_availability_zones.available.names[1]}"
+
+  }
+
+  # ROUTING #
+  resource "aws_route_table" "rtb" {
+    vpc_id = "${aws_vpc.vpc.id}"
+
+    route {
+      cidr_block = "0.0.0.0/0"
+      gateway_id = "${aws_internet_gateway.igw.id}"
+    }
+  }
+
+  resource "aws_route_table_association" "rta-subnet1" {
+    subnet_id      = "${aws_subnet.subnet1.id}"
+    route_table_id = "${aws_route_table.rtb.id}"
+  }
+
+  resource "aws_route_table_association" "rta-subnet2" {
+    subnet_id      = "${aws_subnet.subnet2.id}"
+    route_table_id = "${aws_route_table.rtb.id}"
+  }
+
+  # SECURITY GROUPS #
+  # Nginx security group
+  resource "aws_security_group" "nginx-sg" {
+    name        = "nginx_sg"
+    vpc_id      = "${aws_vpc.vpc.id}"
+
+    # SSH access from anywhere
+    ingress {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    # HTTP access from anywhere
+    ingress {
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    # outbound internet access
+    egress {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+
+  # INSTANCES #
+  # NOTE:  aws instance, set with type, subnet, sec group, key name
+  # NOTE:  connection and a provisioner to install and set services and files
+  #
+  resource "aws_instance" "nginx1" {
+    ami           = "ami-c58c1dd3"
+    instance_type = "t2.micro"
+    subnet_id     = "${aws_subnet.subnet1.id}"
+    vpc_security_group_ids = ["${aws_security_group.nginx-sg.id}"]
+    key_name        = "${var.key_name}"
+
+    connection {
+      user        = "ec2-user"
+      private_key = "${file(var.private_key_path)}"
+    }
+
+    provisioner "remote-exec" {
+      inline = [
+        "sudo yum install nginx -y",
+        "sudo service nginx start",
+        "echo '<html><head><title>Blue Team Server</title></head><body style=\"background-color:#1F778D\"><p style=\"text-align: center;\"><span style=\"color:#FFFFFF;\"><span style=\"font-size:28px;\">Blue Team</span></span></p></body></html>' | sudo tee /usr/share/nginx/html/index.html"
+      ]
+    }
+  }
+
+  ##################################################################################
+  # OUTPUT
+  # NOTE:  get the public DNS name of the nginx instance
+  ##################################################################################
+
+  output "aws_instance_public_dns" {
+      value = "${aws_instance.nginx1.public_dns}"
+  }
 
 
 
 
 
+## UPDATE
+## NOTE:  Here are the differences between moduletwo-start.tf and
+## NOTE:  moduletwo-update.tf.ignore
+##
+
+map@hexagon:/mod2/> diff moduletwo-start.tf moduletwo-update.tf.ignore  |  pg
+44d43
+## NOTE:  First thing to note is that the vpc loses the enable_dns_hostnames
+## NOTE:  The thinking here is that with load blancer and iwg it is not needed.
+<   enable_dns_hostnames = "true"
+89a89,109
+## NOTE:  Next thing that is created is a new security group for the elb.
+> resource "aws_security_group" "elb-sg" {
+>   name        = "nginx_elb_sg"
+>   vpc_id      = "${aws_vpc.vpc.id}"
+>
+>   #Allow HTTP from anywhere
+>   ingress {
+>     from_port   = 80
+>     to_port     = 80
+>     protocol    = "tcp"
+>     cidr_blocks = ["0.0.0.0/0"]
+>   }
+>
+>   #allow all outbound
+>   egress {
+>     from_port   = 0
+>     to_port     = 0
+>     protocol    = "-1"
+>     cidr_blocks = ["0.0.0.0/0"]
+>   }
+> }
+>
+103c123
+## NOTE:  The nginx security group is then updated to have the HTTP ingress
+## NOTE:  traffic only come from the network_address_space, hence only network
+## NOTE:  traffic from the VPC (due to the igw and load balancer)
+<   # HTTP access from anywhere
+---
+>   # HTTP access from the VPC
+108c128
+<     cidr_blocks = ["0.0.0.0/0"]
+---
+>     cidr_blocks = ["${var.network_address_space}"]
+119a140,155
+## NOTE:  Next a elb is created called nginx-elb.  This will be the load balancer
+## NOTE:  for the two web servers.  The ports are set and the subnets are set to
+## NOTE:  the two subnets.  The security group is set to the nginx_elb_sg and the
+## NOTE:  instances point to the aws instances nginx1 and nginx2.
+> # LOAD BALANCER #
+> resource "aws_elb" "web" {
+>   name = "nginx-elb"
+>
+>   subnets         = ["${aws_subnet.subnet1.id}", "${aws_subnet.subnet2.id}"]
+>   security_groups = ["${aws_security_group.elb-sg.id}"]
+>   instances       = ["${aws_instance.nginx1.id}", "${aws_instance.nginx2.id}"]
+>
+>   listener {
+>     instance_port     = 80
+>     instance_protocol = "http"
+>     lb_port           = 80
+>     lb_protocol       = "http"
+>   }
+> }
+>
+141a178,198
+## NOTE:  Next to last a new web instance is created named nginx2. This uses
+## NOTE:  subnet2 and the nginx-sg secuirty group.  It also provisions nginx,
+## NOTE:  starts the sevices and updates the index.html
+##
+> resource "aws_instance" "nginx2" {
+>   ami           = "ami-c58c1dd3"
+>   instance_type = "t2.micro"
+>   subnet_id     = "${aws_subnet.subnet2.id}"
+>   vpc_security_group_ids = ["${aws_security_group.nginx-sg.id}"]
+>   key_name        = "${var.key_name}"
+>
+>   connection {
+>     user        = "ec2-user"
+>     private_key = "${file(var.private_key_path)}"
+>   }
+>
+>   provisioner "remote-exec" {
+>     inline = [
+>       "sudo yum install nginx -y",
+>       "sudo service nginx start",
+>       "echo '<html><head><title>Green Team Server</title></head><body style=\"background-color:#77A032\"><p style=\"text-align: center;\"><span style=\"color:#FFFFFF;\"><span style=\"font-size:28px;\">Green Team</span></span></p></body></html>' | sudo tee /usr/share/nginx/html/index.html"
+>     ]
+>   }
+> }
+>
+146,147c203,204
+## NOTE:  Lastly, the output is not the nginx1 public dns (remember the vpc
+## NOTE:  value was updated to not allow it).  The output value is the
+## NOTE:  is the elb public dns name.
+##
+< output "aws_instance_public_dns" {
+<     value = "${aws_instance.nginx1.public_dns}"
+---
+> output "aws_elb_public_dns" {
+>     value = "${aws_elb.web.dns_name}"
 
 
 
-
-
+##################################################################################
+## Configuring Resources After Creation
+##################################################################################
 
 
 
