@@ -909,7 +909,18 @@ provisioner "remote-exec" {
 ## Terraform Syntax
 ##################################################################################
 
-## LAST HERE
+Terraform uses HashiCorp configuration language.
+  - this converts to JSON to the providers
+
+Interpolation:  order it process strings in config file
+
+Conditionals: if/then do/while
+functions:    take a value/ produce output
+templates:    datasource you design, a long string of text that is consumable by terraform$a
+
+
+## Create a variable
+##
 
 
 
