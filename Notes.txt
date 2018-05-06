@@ -1447,6 +1447,59 @@ output "aws_elb_public_dns" {
 
 
 
+##################################################################################
+## Adding a new provicer to your configuration
+## (multiple clouds)
+##################################################################################
+
+## Terraform Providers
+##
+
+ - Open source using Public APIs
+ - Made up of resource and data sources
+    - resource:     aws instance you can create
+    - data source:  az can pull information from 
+
+  1. Community Providers
+      - Community developed provider
+        - Digital Ocean
+        - VMWare
+        - GitHub
+        - Docker
+        - etc
+  2. HashiCorp Providers
+      - HashiCorp developed provider
+        - AWS
+        - Azure
+        - GCP
+        - Oracle
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ##
