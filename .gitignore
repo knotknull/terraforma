@@ -1,3 +1,5 @@
 /zip
+/.terraform
+/vars
 excercise_files/**/*.pdf
 
