@@ -2165,7 +2165,22 @@ cidr_block = ${lookup(var.cidr, var.environment_name)}
 ## NOTE: the above places the state file into an env directory and then
 ##       passes in the environment variable.
 
+## Directory structure of segregated environment layout (DEV, UAT, PROD)
+## NOTE: outputs, resources and variabes are in separate .tf files
+##
 
+├── Development
+│   └── development.tfvars
+├── Globo_logo_Vert.png
+├── Production
+│   └── production.tfvars
+├── UAT
+│   └── uat.tfvars
+├── index.html
+├── outputs.tf
+├── resources.tf
+├── terraform.tfvars
+└── variables.tf
 
 
 
