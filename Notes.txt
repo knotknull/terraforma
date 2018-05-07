@@ -2097,9 +2097,73 @@ thrice
 ################################################################################
 
 
+Same configuration but each environment will have different variables.
+
+  - variables get own .tf file
+  - outputs   get own .tf file
+  - resources get own or separate .tf file
 
 
+Variable in a .tfvars file will override a default in a .tf file.
 
+Variable precedence:
+    - default variables            (low)
+    - tfvars file variables (mid)
+    - command line declared variables (highest)
+
+Select variables dependent on environment:
+    - Enviroment map using env as key:
+        NUM_OF_INSTANCE['DEV'] = 1
+        NUM_OF_INSTANCE['UAT'] = 2
+        NUM_OF_INSTANCE['PROD'] =6
+
+Conditionals within terraform config:
+  use true/ false variable to determine if resource created
+
+
+# default variable
+variable enironment_name {
+  default = "development"
+}
+
+# Specify variable in a file
+enviroment_name = "uat"
+
+# Specify variable in-line
+terrafprm plan -var 'enviroment_name=production'
+
+## Create variable map
+##
+variable cidr {
+  type = "map"
+  default {
+    development = "10.0.0.0/16"
+    uat = "10.1.0.0/16"
+    prod = "10.2.0.0/16"
+  }
+}
+
+# use map based on env var:
+cidr_block = ${lookup(var.cidr, var.environment_name)}
+
+
+## Multiple environnments variable map
+##
+  - state file commands
+  - state file storage can be stored remotely
+  - folder structure mirrors environnments
+
+
+  main_config.tf
+  variable.tf
+  [dev folder]
+  [uat folder]
+  [prod folder]
+
+  terraform apply -state="./dev/dev.state" -var="environment=dev"
+
+## NOTE: the above places the state file into an env directory and then
+##       passes in the environment variable.
 
 
 
