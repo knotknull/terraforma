@@ -2182,6 +2182,25 @@ cidr_block = ${lookup(var.cidr, var.environment_name)}
 ├── terraform.tfvars
 └── variables.tf
 
+## How to run when environments are separated:
+##
+
+terraform plan -var-file="..\terraform.tfvars" \
+               -var-file=".\Development\development.tfvars" \
+               -state=".\Development\dev.state"
+
+terraform plan -var-file="..\terraform.tfvars" \
+               -var-file=".\UAT\uat.tfvars"  \
+               -state=".\UAT\UAT.state"
+
+## NOTE: that both tfvars are loaded via the -var-file param.  The
+##       state file is also written to the Development directory.
+##
+
+## How to store secrets ?:
+##   - Vault (HashiCorp)
+##   - CyberArk
+
 
 
 
