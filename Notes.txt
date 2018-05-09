@@ -2202,6 +2202,98 @@ terraform plan -var-file="..\terraform.tfvars" \
 ##   - CyberArk
 
 
+################################################################################
+# Terraform Modules
+################################################################################
+
+Terraform Modules:
+  - Allow for code re-use
+  - Can be stored remotely or locally.
+  - Terraform must pull in modules
+  - modules = mini-Terraform config
+  - can use multiple instances of module (but no count)
+
+
+
+Module components:
+  - variables
+  - resources
+  - outputs
+
+
+## example module:
+##
+
+variable "name" {}
+
+resource "aws_s3_bucket" "bucket" {
+  name = "${var.name}"
+  ......
+}
+
+output "bucket_id" {
+  value = "${aws_s3_bucket.bucket.id}"
+}
+
+
+## How to use module in Terraform :
+##
+
+# Create module object for bucket
+module "bucket" {
+  name = "XBuqet"                 ## Set the variable declared in the module
+  source = "./modules/s3"         ## Set the source path for the module (local, github)
+}
+
+## NOTE: At this point the bucket object has been created from the module
+##
+# Use XBuqet
+resource "aws_s3_bucket_object" {
+  bucket = "${module.bucket.bucket_id}"
+  key = "/data/bucket.txt"
+  source = "./xbucket.txt"
+}
+
+
+
+NOTE:  Before running a terraform script that utilizes modules, you must run
+       terraform get for terraform to locate and source the referenced modules
+
+> terraform get
+- module.vpc
+  Getting source "../modules/vpc"
+- module.bucket
+  Getting source "../modules/s3"
+> ls -l
+total 64
+drwxr-xr-x 2 map map  4096 May  9 10:13 Development
+-rw-r--r-- 1 map map 21659 May  9 10:13 Globo_logo_Vert.png
+-rw-r--r-- 1 map map   312 May  9 10:13 index.html
+-rw-r--r-- 1 map map   251 May  9 10:13 outputs.tf
+drwxr-xr-x 2 map map  4096 May  9 10:13 Production
+-rw-r--r-- 1 map map  6322 May  9 10:15 resources.tf
+-rw-r--r-- 1 map map  6324 May  9 10:13 resources.tf.orig
+drwxr-xr-x 2 map map  4096 May  9 10:13 UAT
+-rw-r--r-- 1 map map   799 May  9 10:13 variables.tf
+> ls -l ../modules/
+total 8
+drwxr-xr-x 2 map map 4096 May  9 09:45 s3
+drwxr-xr-x 2 map map 4096 May  9 09:45 vpc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
