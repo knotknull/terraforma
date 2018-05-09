@@ -1,1 +1,0 @@
-{"Modules":[{"Source":"../modules/vpc","Key":"1.vpc;../modules/vpc","Version":"","Dir":".terraform/modules/fe90bc6c39194bb350e1725a9de1a72d","Root":""},{"Source":"../modules/s3","Key":"1.bucket;../modules/s3","Version":"","Dir":".terraform/modules/f5e6e44a5052de4273430d0ba4c5191a","Root":""}]}
